@@ -1,0 +1,61 @@
+Running Python is Spark
+
+
+
+
+******************************************
+
+
+
+
+
+
+Spark SQL Example
+
+This example demonstrates how to use sqlContext.sql to create and load a table and select rows from the table
+into a DataFrame. The next steps use the DataFrame API to filter the rows for salaries greater than 150,000 and show
+the resulting DataFrame.
+
+1. At the command-line, copy the Hue sample_07 data to HDFS:
+
+$ hdfs dfs -put HUE_HOME/apps/beeswax/data/sample_07.csv /user/hdfs
+
+where HUE_HOME defaultsto /opt/cloudera/parcels/CDH/lib/hue (parcel installation) or /usr/lib/hue
+(package installation).
+
+2. Start spark-shell:
+
+$ spark-shell
+
+3. Create a Hive table:
+
+scala> sqlContext.sql("CREATE TABLE sample_07 (code string,description string,total_emp int,salary int) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' STORED AS TextFile")
+
+4. Load data from HDFS into the table:
+
+scala> sqlContext.sql("LOAD DATA INPATH '/user/hdfs/sample_07.csv' OVERWRITE INTO TABLE sample_07")
+
+5. Create a DataFrame containing the contents of the sample_07 table:
+
+scala> val df = sqlContext.sql("SELECT * from sample_07")
+
+6. Show all rows with salary greater than 150,000:
+
+scala> df.filter(df("salary") > 150000).show()
+
+
+The output should be:
++-------+--------------------+---------+------+
+| code| description|total_emp|salary|
++-------+--------------------+---------+------+
+|11-1011| Chief executives| 299160|151370|
+|29-1022|Oral and maxillof...| 5040|178440|
+|29-1023| Orthodontists| 5350|185340|
+|29-1024| Prosthodontists| 380|169360|
+|29-1061| Anesthesiologists| 31030|192780|
+|29-1062|Family and genera...| 113250|153640|
+|29-1063| Internists, general| 46260|167270||29-1064|Obstetricians and...| 21340|183600|
+|29-1067| Surgeons| 50260|191410|
+|29-1069|Physicians and su...| 237400|155150|
++-------+--------------------+---------+------+
+

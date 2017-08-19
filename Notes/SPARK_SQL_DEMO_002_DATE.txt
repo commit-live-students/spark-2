@@ -1,0 +1,357 @@
+https://spark.apache.org/docs/1.6.2/api/java/org/apache/spark/sql/functions.html
+
+
+##################################
+
+SPARK SQL FILTER EQUAL VALUES
+Standard
+When filtering in a DataFrame in Scala you need to use a triple = (i.e. ===) to filter:
+
+So you must use:
+
+ss.filter(ss("ProductKey") === 68325).show()
+Because using
+
+ss.filter(ss("ProductKey") == 68325).show()
+will return the following error:
+
+<console>:25: error: overloaded method value filter with alternatives:
+  (conditionExpr: String)org.apache.spark.sql.DataFrame <and>
+  (condition: org.apache.spark.sql.Column)org.apache.spark.sql.DataFrame
+ cannot be applied to (Boolean)
+              ss.filter(ss("ProductKey") == 68325).show()
+Also
+
+ss.filter(ss("ProductKey") = 68325).show()
+will return the following error as you cannot update a DataFrame
+
+<console>:25: error: value update is not a member of org.apache.spark.sql.DataFrame
+              ss.filter(ss("StopSaleOnPropertyKey") = 68325).show()
+
+
+
+##################################
+Standard Functions for Date and Time
+
+Table 1. (Subset of) Standard Functions for Date and Time
+Name	Description
+current_timestamp	
+to_date	
+to_timestamp	
+unix_timestamp :Converts current or specified time to Unix timestamp (in seconds)
+window	:Generates tumbling time windows
+
+import org.apache.spark.sql.functions._
+
+// no time and format => current time
+
+
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkConf
+val sc = new SparkContext(conf)
+import sqlContext.implicits._
+
+
+scala> spark.range(1).select(unix_timestamp as "current_timestamp").show
++-----------------+
+|current_timestamp|
++-----------------+
+|       1493362850|
++-----------------+
+
+// no format so yyyy-MM-dd HH:mm:ss assumed
+
+scala> Seq("2017-01-01 00:00:00").toDF("time").withColumn("unix_timestamp", unix_timestamp($"time")).show
++-------------------+--------------+
+|               time|unix_timestamp|
++-------------------+--------------+
+|2017-01-01 00:00:00|    1483225200|
++-------------------+--------------+
+
+
+Scala> Seq("2017/01/01 00:00:00").toDF("time").withColumn("unix_timestamp", unix_timestamp($"time", "yyyy/MM/dd")).show
+
++-------------------+--------------+
+|               time|unix_timestamp|
++-------------------+--------------+
+|2017/01/01 00:00:00|    1483225200|
++-------------------+--------------+
+
+
+*****************explode Function******************
+
+Explode function = Creates a new row for each element in the given array or map column.
+
+
+Seq(Array(0,1,2)).toDF("array").withColumn("num", explode('array)).show
+
+O/P:
+
++---------+---+
+|    array|num|
++---------+---+
+|[0, 1, 2]|  0|
+|[0, 1, 2]|  1|
+|[0, 1, 2]|  2|
++---------+---+
+
+*********************************rank Function*************************
+rank(): Column
+dense_rank(): Column
+percent_rank(): Column
+
+rank functions assign the sequential rank of each distinct value per window partition. 
+They are equivalent to RANK, DENSE_RANK and PERCENT_RANK functions in the good ol' SQL.
+
+---------------------------------------------------------
+
+import org.apache.spark.sql.functions.rank
+import org.apache.spark.sql.expressions.Window
+
+val w = Window.orderBy($"value")
+
+val df = sc.parallelize(Seq(("a", 5), ("b", 10), ("c", 5), ("d", 6))).toDF("user", "value")
+
+df.select($"user", rank.over(w).alias("rank")).show
+
+// +----+----+
+// |user|rank|
+// +----+----+
+// |   a|   1|
+// |   c|   1|
+// |   d|   3|
+// |   b|   4|
+// +----+----+
+
+
+----------------------------------------------------
+
+
+val dataset = spark.range(9).withColumn("bucket", 'id % 3)
+
+import org.apache.spark.sql.expressions.Window
+val byBucket = Window.partitionBy('bucket).orderBy('id)
+
+scala> dataset.withColumn("rank", rank over byBucket).show
+
+
+
+
+**********************SQLTransformer************************
+
+SQLTransformer implements the transformations which are defined by SQL statement. Currently we only support SQL syntax like "SELECT ... FROM __THIS__ ..." where "__THIS__" represents the underlying table of the input dataset. The select clause specifies the fields, constants, and expressions to display in the output, and can be any select clause that Spark SQL supports. Users can also use Spark SQL built-in function and UDFs to operate on these selected columns. For example, SQLTransformer supports statements like:
+
+SELECT a, a + b AS a_b FROM __THIS__
+SELECT a, SQRT(b) AS b_sqrt FROM __THIS__ where a > 5
+SELECT a, b, SUM(c) AS c_sum FROM __THIS__ GROUP BY a, b
+
+
+Examples
+
+Assume that we have the following DataFrame with columns id, v1 and v2:
+
+ id |  v1 |  v2
+----|-----|-----
+ 0  | 1.0 | 3.0  
+ 2  | 2.0 | 5.0
+
+This is the output of the SQLTransformer with statement "SELECT *, (v1 + v2) AS v3, (v1 * v2) AS v4 FROM __THIS__":
+
+ id |  v1 |  v2 |  v3 |  v4
+----|-----|-----|-----|-----
+ 0  | 1.0 | 3.0 | 4.0 | 3.0
+ 2  | 2.0 | 5.0 | 7.0 |10.0
+
+import org.apache.spark.ml.feature.SQLTransformer
+
+val df = spark.createDataFrame(Seq((0, 1.0, 3.0), (2, 2.0, 5.0))).toDF("id", "v1", "v2")
+
+val sqlTrans = new SQLTransformer().setStatement("SELECT *, (v1 + v2) AS v3, (v1 * v2) AS v4 FROM __THIS__")
+
+sqlTrans.transform(df).show()
+
+****************************Joins*********************************
+
+Condition-less inner join
+Inner join with a single column that exists on both sides+
+
+Inner join with columns that exist on both sides
+Equi-join with explicit join type
+Inner join
+Join with explicit join type. Self-joins are acceptable.
+
+
+
+val left = Seq((0, "zero"), (1, "one")).toDF("id", "left")
+val right = Seq((0, "zero"), (2, "two"), (3, "three")).toDF("id", "right")
+
+// Inner join
+scala> left.join(right, "id").show
++---+----+-----+
+| id|left|right|
++---+----+-----+
+|  0|zero| zero|
++---+----+-----+
+
+scala> left.join(right, "id").explain
+== Physical Plan ==
+*Project [id#50, left#51, right#61]
++- *BroadcastHashJoin [id#50], [id#60], Inner, BuildRight
+   :- LocalTableScan [id#50, left#51]
+   +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, false] as bigint)))
+      +- LocalTableScan [id#60, right#61]
+
+// Full outer
+scala> left.join(right, Seq("id"), "fullouter").show
++---+----+-----+
+| id|left|right|
++---+----+-----+
+|  1| one| null|
+|  3|null|three|
+|  2|null|  two|
+|  0|zero| zero|
++---+----+-----+
+
+scala> left.join(right, Seq("id"), "fullouter").explain
+== Physical Plan ==
+*Project [coalesce(id#50, id#60) AS id#85, left#51, right#61]
++- SortMergeJoin [id#50], [id#60], FullOuter
+   :- *Sort [id#50 ASC NULLS FIRST], false, 0
+   :  +- Exchange hashpartitioning(id#50, 200)
+   :     +- LocalTableScan [id#50, left#51]
+   +- *Sort [id#60 ASC NULLS FIRST], false, 0
+      +- Exchange hashpartitioning(id#60, 200)
+         +- LocalTableScan [id#60, right#61]
+
+// Left anti
+scala> left.join(right, Seq("id"), "leftanti").show
++---+----+
+| id|left|
++---+----+
+|  1| one|
++---+----+
+
+scala> left.join(right, Seq("id"), "leftanti").explain
+== Physical Plan ==
+*BroadcastHashJoin [id#50], [id#60], LeftAnti, BuildRight
+:- LocalTableScan [id#50, left#51]
++- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, false] as bigint)))
+   +- LocalTableScan [id#60]
+
+
+
+************************crossJoin Method*****************************
+
+joinWith creates a Dataset with two columns _1 and _2 that each contains records for which condition holds.
+
+case class Person(id: Long, name: String, cityId: Long)
+case class City(id: Long, name: String)
+
+val people = Seq(Person(0, "Agata", 0), Person(1, "Iweta", 0)).toDS
+val cities = Seq(City(0, "Warsaw"), City(1, "Washington")).toDS
+
+val joined = people.joinWith(cities, people("cityId") === cities("id"))
+
+scala> joined.printSchema
+root
+ |-- _1: struct (nullable = false)
+ |    |-- id: long (nullable = false)
+ |    |-- name: string (nullable = true)
+ |    |-- cityId: long (nullable = false)
+ |-- _2: struct (nullable = false)
+ |    |-- id: long (nullable = false)
+ |    |-- name: string (nullable = true)
+
+scala> joined.show
++-----------+----------+
+|         _1|        _2|
++-----------+----------+
+|[0,Agata,0]|[0,Warsaw]|
+|[1,Iweta,0]|[0,Warsaw]|
++-----------+----------+
+
+
+
+Note
+joinWith preserves type-safety with the original object types.
+Note
+joinWith creates a Dataset with Join logical plan.
+
+******************************************************
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+********************VectorAssembler****************************
+
+VectorAssembler is a transformer that combines a given list of columns into a single vector column. It is useful for combining raw features and features generated by different feature transformers into a single feature vector, in order to train ML models like logistic regression and decision trees. VectorAssembler accepts the following input column types: all numeric types, boolean type, and vector type. In each row, the values of the input columns will be concatenated into a vector in the specified order.
+
+Examples
+
+Assume that we have a DataFrame with the columns id, hour, mobile, userFeatures, and clicked:
+
+ id | hour | mobile | userFeatures     | clicked
+----|------|--------|------------------|---------
+ 0  | 18   | 1.0    | [0.0, 10.0, 0.5] | 1.0
+
+userFeatures is a vector column that contains three user features. We want to combine hour, mobile, and userFeatures into a single feature vector called features and use it to predict clicked or not. If we set VectorAssembler’s input columns to hour, mobile, and userFeatures and output column to features, after transformation we should get the following DataFrame:
+
+
+ id | hour | mobile | userFeatures     | clicked | features
+----|------|--------|------------------|---------|-----------------------------
+ 0  | 18   | 1.0    | [0.0, 10.0, 0.5] | 1.0     | [18.0, 1.0, 0.0, 10.0, 0.5]
+
+
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.ml.linalg.Vectors
+
+val dataset = spark.createDataFrame(
+  Seq((0, 18, 1.0, Vectors.dense(0.0, 10.0, 0.5), 1.0))
+).toDF("id", "hour", "mobile", "userFeatures", "clicked")
+
+val assembler = new VectorAssembler().setInputCols(Array("hour", "mobile", "userFeatures")).setOutputCol("features")
+
+val output = assembler.transform(dataset)
+println("Assembled columns 'hour', 'mobile', 'userFeatures' to vector column 'features'")
+output.select("features", "clicked").show(false)
+
+

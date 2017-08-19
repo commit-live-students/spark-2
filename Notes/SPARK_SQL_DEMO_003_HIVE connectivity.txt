@@ -1,0 +1,61 @@
+HiveContext is a specialized SQLContext to work with Hive.
+
+Tip
+Import org.apache.spark.sql.hive package to use HiveContext.
+
+-----------------------------------------------------
+Hive Functions
+
+SQLContext.sql (or simply sql) allows you to interact with Hive.
+You can use show functions to learn about the Hive functions supported through the Hive integration.
+scala> sql("show functions").show(false)
+16/04/10 15:22:08 INFO HiveSqlParser: Parsing command: show functions
++---------------------+
+|function             |
++---------------------+
+|!                    |
+|%                    |
+|&                    |
+|*                    |
+|+                    |
+|-                    |
+|/                    |
+|<                    |
+|<=                   |
+|<=>                  |
+|=                    |
+|==                   |
+|>                    |
+|>=                   |
+|^                    |
+|abs                  |
+|acos                 |
+|add_months           |
+|and                  |
+|approx_count_distinct|
++---------------------+
+only showing top 20 rows
+-----------------------------------------------------------------
+current_database function
+
+current_database function returns the current database of Hive metadata.
+scala> sql("select current_database()").show(false)
+16/04/09 13:52:13 INFO HiveSqlParser: Parsing command: select current_database()
++-----------------+
+|currentdatabase()|
++-----------------+
+|default          |
++-----------------+
+
+
+Analyzing Tables
+
+analyze(tableName: String)
+analyze analyzes tableName table for query optimizations. It currently supports only Hive tables.
+scala> sql("show tables").show(false)
+16/04/09 14:04:10 INFO HiveSqlParser: Parsing command: show tables
++---------+-----------+
+|tableName|isTemporary|
++---------+-----------+
+|dafa     |false      |
++---------+-----------+

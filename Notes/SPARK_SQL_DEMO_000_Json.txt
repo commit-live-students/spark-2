@@ -1,0 +1,33 @@
+Implicit Conversions?—?implicits object
+
+The implicits object is a helper class with the Scala implicit methods (aka conversions) to convert Scala objects to Datasets, DataFrames and Columns. It also defines Encoders for Scala’s "primitive" types, e.g. Int, Double, String, and their products and collections.
+
+
+Spark SQL with running Hive queries
+
+-----------------------------------------------------
+val sc = SparkCommon.sparkContext
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+import sqlContext.implicits._
+
+--------------------------------------------------
+
+
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+import sqlContext.implicits._
+
+
+val people = sqlContext.read.json("people.json")
+/////val baby_names = sqlContext.read.format("Baby_Names__Beginning_2007.csv")///////
+
+input.registerTempTable("people1")
+dfCustomers.registerTempTable("people1")
+ 
+val result = sqlContext.sql("SELECT * FROM people1")
+ 
+result.show()
+
+val names = people.select('name).collect()
+
+names.map(row => row.getString(0))
