@@ -4,7 +4,7 @@
 Before this lesson, we recommend you go through
 
 ## Notes
-[Notes](https://github.com/commit-live-students/spark-2/tree/master/notes)
+[Notes](https://github.com/commit-live-students/spark-2/tree/master/Notes)
 
 
 ## Agenda
